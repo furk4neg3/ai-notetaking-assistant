@@ -1,0 +1,1109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Notetaking Assistant</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: #333;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+            display: grid;
+            grid-template-columns: 300px 1fr;
+            gap: 20px;
+            min-height: 100vh;
+        }
+
+        .sidebar {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 20px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            height: fit-content;
+            position: sticky;
+            top: 20px;
+        }
+
+        .main-content {
+            display: grid;
+            grid-template-rows: auto 1fr auto;
+            gap: 20px;
+            min-height: calc(100vh - 40px);
+        }
+
+        .header {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 25px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            text-align: center;
+        }
+
+        .header h1 {
+            color: #4a5568;
+            font-size: 2.5em;
+            font-weight: 700;
+            margin-bottom: 10px;
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        .header p {
+            color: #718096;
+            font-size: 1.1em;
+        }
+
+        .chat-container {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .chat-messages {
+            flex: 1;
+            padding: 20px;
+            overflow-y: auto;
+            max-height: 500px;
+            min-height: 400px;
+        }
+
+        .message {
+            margin-bottom: 20px;
+            animation: fadeInUp 0.3s ease-out;
+        }
+
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .message.user {
+            text-align: right;
+        }
+
+        .message.bot {
+            text-align: left;
+        }
+
+        .message-content {
+            display: inline-block;
+            max-width: 80%;
+            padding: 15px 20px;
+            border-radius: 20px;
+            font-size: 14px;
+            line-height: 1.5;
+            word-wrap: break-word;
+        }
+
+        .message.user .message-content {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-bottom-right-radius: 5px;
+        }
+
+        .message.bot .message-content {
+            background: #f7fafc;
+            color: #2d3748;
+            border: 1px solid #e2e8f0;
+            border-bottom-left-radius: 5px;
+        }
+
+        .input-container {
+            padding: 20px;
+            border-top: 1px solid #e2e8f0;
+            background: rgba(255, 255, 255, 0.7);
+        }
+
+        .input-group {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        @media (max-width: 600px) {
+            .input-group {
+                flex-direction: column;
+            }
+            
+            .input-group button {
+                width: 100%;
+                margin-top: 5px;
+            }
+        }
+
+        .message-input {
+            flex: 1;
+            padding: 15px 20px;
+            border: 2px solid #e2e8f0;
+            border-radius: 25px;
+            font-size: 16px;
+            outline: none;
+            transition: all 0.3s ease;
+            background: white;
+        }
+
+        .message-input:focus {
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .send-btn, .action-btn {
+            padding: 15px 25px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 25px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .send-btn:hover, .action-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(102, 126, 234, 0.3);
+        }
+
+        .send-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .sidebar h2 {
+            color: #4a5568;
+            margin-bottom: 20px;
+            font-size: 1.4em;
+            text-align: center;
+        }
+
+        .api-config {
+            margin-bottom: 30px;
+        }
+
+        .api-input {
+            width: 100%;
+            padding: 12px 15px;
+            border: 2px solid #e2e8f0;
+            border-radius: 12px;
+            font-size: 14px;
+            margin-bottom: 15px;
+            outline: none;
+            transition: border-color 0.3s ease;
+        }
+
+        .api-input:focus {
+            border-color: #667eea;
+        }
+
+        .notes-section {
+            margin-top: 20px;
+        }
+
+        .notes-list {
+            max-height: 300px;
+            overflow-y: auto;
+            margin-top: 15px;
+        }
+
+        .note-item {
+            background: #f7fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 12px;
+            padding: 15px;
+            margin-bottom: 10px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            position: relative;
+        }
+
+        .note-item:hover {
+            background: #edf2f7;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        }
+
+        .note-title {
+            font-weight: 600;
+            color: #2d3748;
+            margin-bottom: 5px;
+            font-size: 14px;
+        }
+
+        .note-preview {
+            color: #718096;
+            font-size: 12px;
+            line-height: 1.4;
+        }
+
+        .note-actions {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            display: flex;
+            gap: 5px;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .note-item:hover .note-actions {
+            opacity: 1;
+        }
+
+        .note-action-btn {
+            background: none;
+            border: none;
+            cursor: pointer;
+            padding: 5px;
+            border-radius: 5px;
+            color: #718096;
+            font-size: 12px;
+            transition: all 0.2s ease;
+        }
+
+        .note-action-btn:hover {
+            background: #e2e8f0;
+            color: #2d3748;
+        }
+
+        .status {
+            text-align: center;
+            padding: 10px;
+            border-radius: 10px;
+            margin-bottom: 15px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .status.connected {
+            background: #c6f6d5;
+            color: #22543d;
+        }
+
+        .status.disconnected {
+            background: #fed7d7;
+            color: #742a2a;
+        }
+
+        .loading {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            color: #718096;
+            font-style: italic;
+        }
+
+        .spinner {
+            width: 20px;
+            height: 20px;
+            border: 2px solid #e2e8f0;
+            border-top: 2px solid #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .export-section {
+            margin-top: 20px;
+            padding-top: 20px;
+            border-top: 1px solid #e2e8f0;
+        }
+
+        .search-container {
+            margin-bottom: 20px;
+        }
+
+        .search-input {
+            width: 100%;
+            padding: 10px 15px;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            font-size: 14px;
+            outline: none;
+        }
+
+        .search-input:focus {
+            border-color: #667eea;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                grid-template-columns: 1fr;
+                padding: 10px;
+            }
+            
+            .sidebar {
+                position: static;
+                order: 2;
+            }
+            
+            .main-content {
+                order: 1;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="sidebar">
+            <h2>🤖 AI Assistant</h2>
+            
+            <div class="api-config">
+                <div id="connectionStatus" class="status disconnected">
+                    ❌ API Not Connected
+                </div>
+                <input type="password" id="apiKey" class="api-input" placeholder="Enter OpenAI API Key" />
+                <button id="connectBtn" class="action-btn">
+                    🔌 Connect API
+                </button>
+            </div>
+
+            <div class="search-container">
+                <input type="text" id="searchInput" class="search-input" placeholder="🔍 Search notes..." />
+            </div>
+
+            <div class="notes-section">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                    <h3>📝 My Notes (<span id="noteCount">0</span>)</h3>
+                    <div>
+                        <button id="sortBtn" class="note-action-btn" title="Sort notes">
+                            <span id="sortIcon">📊</span>
+                            <span id="sortLabel" style="display:none; margin-left:6px; font-weight:600; font-size:12px;"></span>
+                        </button>
+
+                        <button id="clearAllBtn" class="note-action-btn" title="Clear all notes">🗑️</button>
+                    </div>
+                </div>
+                <div id="notesList" class="notes-list">
+                    <div style="text-align: center; color: #718096; padding: 20px;">
+                        No notes yet. Start chatting to create notes!
+                    </div>
+                </div>
+            </div>
+
+            <div class="export-section">
+                <button id="exportBtn" class="action-btn">
+                    📄 Export Notes
+                </button>
+                <input type="file" id="importBtn" accept=".json" style="display: none;">
+                <button id="importTrigger" class="action-btn" style="margin-top: 10px;">
+                    📁 Import Notes
+                </button>
+            </div>
+        </div>
+
+        <div class="main-content">
+            <div class="header">
+                <h1>✨ AI Notetaking Assistant</h1>
+                <p>Chat with AI and automatically save important information as organized notes</p>
+            </div>
+
+            <div class="chat-container">
+                <div id="chatMessages" class="chat-messages">
+                    <div class="message bot">
+                        <div class="message-content">
+                            👋 Hello! I'm your AI notetaking assistant. I can help you:
+                            <br>• Answer questions and provide information
+                            <br>• Automatically save important parts of our conversation as notes
+                            <br>• Organize and search through your notes
+                            <br>• Export your notes for external use
+                            <br><br>Please connect your OpenAI API key to get started!
+                        </div>
+                    </div>
+                </div>
+
+                <div class="input-container">
+                    <div class="input-group">
+                        <input type="text" id="messageInput" class="message-input" placeholder="Type your message here..." disabled />
+                        <button id="sendBtn" class="send-btn" disabled>
+                            📤 Send
+                        </button>
+                        <button id="saveNoteBtn" class="action-btn">
+                            💾 Save as Note
+                        </button>
+                        <button id="clearChatBtn" class="action-btn">
+                            🧹 Clear Chat
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script>
+        class NoteTakingApp {
+            constructor() {
+                this.apiKey = '';
+                this.isConnected = false;
+                this.notes = this.loadNotes();
+                this.chatHistory = [];
+                this.currentSearchTerm = '';
+                this.sortOrder = 'newest'; // newest, oldest, alphabetical
+                this.sortOptions = [
+                    { value: 'newest', label: 'Newest', icon: '🔄' },
+                    { value: 'oldest', label: 'Oldest', icon: '⏳' },
+                    { value: 'alphabetical', label: 'A-Z', icon: '🔤' }
+                ];
+                
+                this.initializeEventListeners();
+                this.renderNotes();
+                this.updateUI();
+            }
+
+            initializeEventListeners() {
+                const sortBtn = document.getElementById('sortBtn');
+                const sortIcon = document.getElementById('sortIcon');
+                const sortLabel = document.getElementById('sortLabel');
+                sortBtn.addEventListener('mouseenter', () => {
+                    const opt = this.sortOptions.find(o => o.value === this.sortOrder);
+                    sortIcon.textContent = opt.icon;
+                    sortLabel.textContent = opt.label;
+                    sortLabel.style.display = 'inline';
+                });
+                sortBtn.addEventListener('mouseleave', () => {
+                    sortLabel.style.display = 'none';
+                    sortIcon.textContent = '📊';
+                });
+
+                // API Connection
+                document.getElementById('connectBtn').addEventListener('click', () => this.connectAPI());
+                document.getElementById('apiKey').addEventListener('keypress', (e) => {
+                    if (e.key === 'Enter') this.connectAPI();
+                });
+
+                // Chat functionality
+                document.getElementById('sendBtn').addEventListener('click', () => this.sendMessage());
+                document.getElementById('messageInput').addEventListener('keypress', (e) => {
+                    if (e.key === 'Enter' && !e.shiftKey) {
+                        e.preventDefault();
+                        this.sendMessage();
+                    }
+                });
+
+                // Notes functionality
+                document.getElementById('saveNoteBtn').addEventListener('click', async () => await this.saveCurrentConversationAsNote());
+                document.getElementById('clearAllBtn').addEventListener('click', () => this.clearAllNotes());
+                document.getElementById('clearChatBtn').addEventListener('click', () => this.clearChat());
+                document.getElementById('sortBtn').addEventListener('click', () => this.toggleSort());
+                document.getElementById('exportBtn').addEventListener('click', () => this.exportNotes());
+                document.getElementById('importTrigger').addEventListener('click', () => {
+                    document.getElementById('importBtn').click();
+                });
+                document.getElementById('importBtn').addEventListener('change', (e) => this.importNotes(e));
+
+                // Search functionality
+                document.getElementById('searchInput').addEventListener('input', (e) => {
+                    this.currentSearchTerm = e.target.value.toLowerCase();
+                    this.renderNotes();
+                });
+            }
+
+            async connectAPI() {
+                const apiKeyInput = document.getElementById('apiKey');
+                const apiKey = apiKeyInput.value.trim();
+                
+                if (!apiKey) {
+                    alert('Please enter your OpenAI API key');
+                    return;
+                }
+
+                const connectBtn = document.getElementById('connectBtn');
+                connectBtn.innerHTML = '<div class="spinner"></div> Connecting...';
+                connectBtn.disabled = true;
+
+                try {
+                    // Test API connection
+                    const response = await fetch('https://api.openai.com/v1/models', {
+                        headers: {
+                            'Authorization': `Bearer ${apiKey}`
+                        }
+                    });
+
+                    if (response.ok) {
+                        this.apiKey = apiKey;
+                        this.isConnected = true;
+                        this.updateConnectionStatus(true);
+                        apiKeyInput.value = '';
+                        this.addMessage('bot', '✅ API connected successfully! You can now start chatting.');
+                    } else {
+                        throw new Error('Invalid API key or connection failed');
+                    }
+                } catch (error) {
+                    alert('Failed to connect to OpenAI API. Please check your API key.');
+                    this.updateConnectionStatus(false);
+                } finally {
+                    connectBtn.innerHTML = '🔌 Connect API';
+                    connectBtn.disabled = false;
+                }
+            }
+
+            updateConnectionStatus(connected) {
+                const status = document.getElementById('connectionStatus');
+                const messageInput = document.getElementById('messageInput');
+                const sendBtn = document.getElementById('sendBtn');
+
+                if (connected) {
+                    status.className = 'status connected';
+                    status.textContent = '✅ API Connected';
+                    messageInput.disabled = false;
+                    sendBtn.disabled = false;
+                    messageInput.placeholder = 'Type your message here...';
+                } else {
+                    status.className = 'status disconnected';
+                    status.textContent = '❌ API Not Connected';
+                    messageInput.disabled = true;
+                    sendBtn.disabled = true;
+                    messageInput.placeholder = 'Connect API first...';
+                }
+            }
+
+            async sendMessage() {
+                if (!this.isConnected) {
+                    alert('Please connect your API key first');
+                    return;
+                }
+
+                const messageInput = document.getElementById('messageInput');
+                const message = messageInput.value.trim();
+                if (!message) return;
+
+                // Add user message to chat and history
+                this.addMessage('user', message);
+                this.chatHistory.push({ role: 'user', content: message });
+                messageInput.value = '';
+
+                // Show loading
+                const loadingId = this.addMessage('bot', '<div class="loading"><div class="spinner"></div> AI is thinking...</div>');
+
+                try {
+                    const response = await fetch('http://localhost:3001/chat', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            messages: [
+                                { role: 'system', content: 'You are an AI notetaking assistant. When the user asks to save, delete, clear, or export notes or chat, you MUST use the corresponding function tool (never answer in plain text or ask for confirmation). Call that tool exactly one time for each such request. Do not call any tool again on follow-up messages unless the user asks again. Only respond in plain text for other questions.' },
+                                ...this.chatHistory.slice(-10)
+                            ]
+                        })
+                    });
+                    if (!response.ok) throw new Error(`API request failed: ${response.status}`);
+
+                    const data = await response.json();
+
+                    // Remove loading message
+                    this.removeMessage(loadingId);
+                    if (data.tool_used) {
+                        this.handleTool(data.tool_used, data.tool_args);
+                        return;
+                    }
+
+                    // Otherwise, it's just a normal AI response
+                    const aiResponse = data.message;
+                    this.addMessage('bot', aiResponse);
+                    this.chatHistory.push({ role: 'assistant', content: aiResponse });
+
+                    // Auto-save logic, if needed:
+                    this.autoSaveImportantInfo(message, aiResponse);
+
+                } catch (error) {
+                    this.removeMessage(loadingId);
+                    this.addMessage('bot', '❌ Sorry, there was an error processing your message. Please try again.');
+                    console.error('Error:', error);
+                }
+            }
+
+
+            async isConversationNoteWorthy(userMessage, aiResponse) {
+                const prompt = `Given the following exchange between a user and an AI assistant, decide if it contains information that is important, useful, or insightful enough to be saved as a note. Only answer YES or NO.
+
+            User: ${userMessage}
+            AI: ${aiResponse}
+
+            Is this worth saving as a note? Answer YES or NO.`;
+
+                try {
+                    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+                        method: 'POST',
+                        headers: {
+                            'Authorization': `Bearer ${this.apiKey}`,
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            model: 'gpt-4.1-mini',
+                            messages: [
+                                { role: 'system', content: 'You decide whether a conversation should be saved as a note.' },
+                                { role: 'user', content: prompt }
+                            ],
+                            max_tokens: 4,
+                            temperature: 0.0
+                        })
+                    });
+                    if (!response.ok) throw new Error('Failed to check note worthiness');
+                    const data = await response.json();
+                    const answer = data.choices[0].message.content.trim().toUpperCase();
+                    return answer === 'YES';
+                } catch (err) {
+                    console.error('Error deciding note worthiness:', err);
+                    // fallback: keep old logic or default to not saving
+                    return false;
+                }
+            }
+
+            addMessage(sender, content) {
+                const messagesContainer = document.getElementById('chatMessages');
+                const messageId = 'msg-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9);
+
+                const messageDiv = document.createElement('div');
+                messageDiv.className = `message ${sender}`;
+                messageDiv.id = messageId;
+
+                // Render Markdown for bot messages
+                let renderedContent = content;
+                if (sender === 'bot') {
+                    renderedContent = marked.parse(content);
+                }
+
+                messageDiv.innerHTML = `<div class="message-content">${renderedContent}</div>`;
+
+                messagesContainer.appendChild(messageDiv);
+                messagesContainer.scrollTop = messagesContainer.scrollHeight;
+
+                return messageId;
+            }
+
+            async generateNoteTitleWithGPT(userMessage, aiResponse) {
+                const prompt = `Given the following conversation, suggest a short, content-aware title (max 7 words) for a note. Only output the title, no explanations.
+
+            User: ${userMessage}
+            AI: ${aiResponse}
+            Title:`;
+
+                try {
+                    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+                        method: 'POST',
+                        headers: {
+                            'Authorization': `Bearer ${this.apiKey}`,
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            model: 'gpt-4.1-mini',
+                            messages: [
+                                {role: 'system', content: 'You create short, content-aware titles for notes.'},
+                                {role: 'user', content: prompt}
+                            ],
+                            max_tokens: 20,
+                            temperature: 0.4
+                        })
+                    });
+                    if (!response.ok) {
+                        throw new Error('Failed to generate title');
+                    }
+                    const data = await response.json();
+                    let title = data.choices[0].message.content.trim();
+                    // Remove any "Title:" prefix or extra quotes
+                    title = title.replace(/^Title:\s*/i, '').replace(/["']/g, '');
+                    return title || 'Untitled Note';
+                } catch (error) {
+                    console.error('Error generating title with GPT:', error);
+                    return this.generateNoteTitle(userMessage, aiResponse); // fallback
+                }
+            }
+
+            removeMessage(messageId) {
+                const messageElement = document.getElementById(messageId);
+                if (messageElement) {
+                    messageElement.remove();
+                }
+            }
+
+            async autoSaveImportantInfo(userMessage, aiResponse) {
+                const shouldSave = await this.isConversationNoteWorthy(userMessage, aiResponse);
+                if (shouldSave) {
+                    const title = await this.generateNoteTitleWithGPT(userMessage, aiResponse);
+                    this.saveNote({
+                        title: title,
+                        content: `Q: ${userMessage}\n\nA: ${aiResponse}`,
+                        timestamp: new Date().toISOString(),
+                        type: 'auto'
+                    });
+                }
+            }
+
+            async sendToAgent(userMessage) {
+                const response = await fetch("http://localhost:3001/chat", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        messages: [
+                            // system, previous chat, etc...
+                            { role: "user", content: userMessage }
+                        ]
+                    })
+                });
+                return await response.json();
+            }
+
+
+            generateNoteTitle(userMessage, aiResponse) {
+                // Extract meaningful title from the conversation
+                const userWords = userMessage.split(' ').slice(0, 8).join(' ');
+                let title = userWords.length > 40 ? userWords.substring(0, 40) + '...' : userWords;
+                
+                // Capitalize first letter
+                title = title.charAt(0).toUpperCase() + title.slice(1);
+                
+                return title || 'Untitled Note';
+            }
+
+            async saveCurrentConversationAsNote() {
+                if (this.chatHistory.length < 2) {
+                    alert('Start a conversation first before saving notes!');
+                    return;
+                }
+
+                const lastUserMsg = this.chatHistory.filter(msg => msg.role === 'user').pop();
+                const lastBotMsg = this.chatHistory.filter(msg => msg.role === 'assistant').pop();
+
+                if (lastUserMsg && lastBotMsg) {
+                    const suggestedTitle = await this.generateNoteTitleWithGPT(lastUserMsg.content, lastBotMsg.content);
+                    const title = prompt('Enter a title for this note:', suggestedTitle);
+                    if (title) {
+                        this.saveNote({
+                            title: title,
+                            content: `Q: ${lastUserMsg.content}\n\nA: ${lastBotMsg.content}`,
+                            timestamp: new Date().toISOString(),
+                            type: 'manual'
+                        });
+                    }
+                }
+            }
+
+
+            saveNote(note) {
+                this.notes.unshift(note);
+                this.saveNotes();
+                this.renderNotes();
+                
+                // Show brief confirmation
+                const originalText = document.getElementById('saveNoteBtn').innerHTML;
+                document.getElementById('saveNoteBtn').innerHTML = '✅ Saved!';
+                setTimeout(() => {
+                    document.getElementById('saveNoteBtn').innerHTML = originalText;
+                }, 1500);
+            }
+
+            loadNotes() {
+                try {
+                    const saved = localStorage.getItem('ai-notes');
+                    return saved ? JSON.parse(saved) : [];
+                } catch (error) {
+                    console.error('Error loading notes:', error);
+                    return [];
+                }
+            }
+
+            saveNotes() {
+                try {
+                    localStorage.setItem('ai-notes', JSON.stringify(this.notes));
+                } catch (error) {
+                    console.error('Error saving notes:', error);
+                }
+            }
+
+            renderNotes() {
+                const notesList = document.getElementById('notesList');
+                const noteCount = document.getElementById('noteCount');
+                
+                // Filter notes based on search term
+                let filteredNotes = this.notes.filter(note => 
+                    !this.currentSearchTerm || 
+                    note.title.toLowerCase().includes(this.currentSearchTerm) ||
+                    note.content.toLowerCase().includes(this.currentSearchTerm)
+                );
+
+                // Sort notes based on current sort order
+                switch(this.sortOrder) {
+                    case 'oldest':
+                        filteredNotes.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+                        break;
+                    case 'alphabetical':
+                        filteredNotes.sort((a, b) => a.title.localeCompare(b.title));
+                        break;
+                    case 'newest':
+                    default:
+                        filteredNotes.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+                }
+
+                // Update note count
+                noteCount.textContent = filteredNotes.length;
+
+                if (filteredNotes.length === 0) {
+                    notesList.innerHTML = `
+                        <div style="text-align: center; color: #718096; padding: 20px;">
+                            ${this.currentSearchTerm ? 'No notes match your search.' : 'No notes yet. Start chatting to create notes!'}
+                        </div>
+                    `;
+                    return;
+                }
+
+                notesList.innerHTML = filteredNotes.map((note) => `
+                    <div class="note-item" onclick="app.viewNote(${this.notes.indexOf(note)})">
+                        <div class="note-actions">
+                            <button class="note-action-btn" onclick="event.stopPropagation(); app.editNote(${this.notes.indexOf(note)})" title="Edit">✏️</button>
+                            <button class="note-action-btn" onclick="event.stopPropagation(); app.deleteNote(${this.notes.indexOf(note)})" title="Delete">🗑️</button>
+                        </div>
+                        <div class="note-title">${note.title}</div>
+                        <div class="note-preview">${note.content.substring(0, 100)}${note.content.length > 100 ? '...' : ''}</div>
+                        <div style="font-size: 10px; color: #a0aec0; margin-top: 8px;">
+                            ${new Date(note.timestamp).toLocaleDateString()} • ${note.type === 'auto' ? '🤖 Auto-saved' : '💾 Manual'}
+                        </div>
+                    </div>
+                `).join('');
+            }
+
+           viewNote(index) {
+                const note = this.notes[index];
+                if (note) {
+                    // Render Markdown in note content
+                    const htmlContent = marked.parse(note.content);
+
+                    const noteWindow = window.open('', '_blank', 'width=600,height=400,scrollbars=yes');
+                    noteWindow.document.write(`
+                        <html>
+                        <head>
+                            <title>${note.title}</title>
+                            <style>
+                                body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 20px; line-height: 1.6; background: #f7fafc; }
+                                h1 { color: #2d3748; border-bottom: 2px solid #667eea; padding-bottom: 10px; }
+                                .meta { color: #718096; font-size: 14px; margin-bottom: 20px; }
+                                .content { background: #fff; padding: 15px; border-radius: 8px; box-shadow: 0 4px 18px rgba(102, 126, 234, 0.08);}
+                                code, pre { background: #f3f4f6; border-radius: 4px; }
+                            </style>
+                        </head>
+                        <body>
+                            <h1>${note.title}</h1>
+                            <div class="meta">Created: ${new Date(note.timestamp).toLocaleString()} • Type: ${note.type === 'auto' ? 'Auto-saved' : 'Manual'}</div>
+                            <div class="content">${htmlContent}</div>
+                        </body>
+                        </html>
+                    `);
+                    noteWindow.document.close();
+                }
+            }
+
+
+            editNote(index) {
+                const note = this.notes[index];
+                if (note) {
+                    const newTitle = prompt('Edit title:', note.title);
+                    if (newTitle !== null) {
+                        const newContent = prompt('Edit content:', note.content);
+                        if (newContent !== null) {
+                            this.notes[index] = {
+                                ...note,
+                                title: newTitle,
+                                content: newContent,
+                                timestamp: new Date().toISOString()
+                            };
+                            this.saveNotes();
+                            this.renderNotes();
+                        }
+                    }
+                }
+            }
+
+            deleteNote(index) {
+                if (confirm('Are you sure you want to delete this note?')) {
+                    this.notes.splice(index, 1);
+                    this.saveNotes();
+                    this.renderNotes();
+                }
+            }
+
+            clearAllNotes() {
+                if (confirm('Are you sure you want to delete ALL notes? This cannot be undone.')) {
+                    this.notes = [];
+                    this.saveNotes();
+                    this.renderNotes();
+                }
+            }
+
+            exportNotes() {
+                if (this.notes.length === 0) {
+                    alert('No notes to export!');
+                    return;
+                }
+
+                const exportData = {
+                    notes: this.notes,
+                    exportDate: new Date().toISOString(),
+                    totalNotes: this.notes.length
+                };
+
+                const dataStr = JSON.stringify(exportData, null, 2);
+                const dataBlob = new Blob([dataStr], { type: 'application/json' });
+                
+                const link = document.createElement('a');
+                link.href = URL.createObjectURL(dataBlob);
+                link.download = `ai-notes-${new Date().toISOString().split('T')[0]}.json`;
+                link.click();
+            }
+
+            importNotes(event) {
+                const file = event.target.files[0];
+                if (!file) return;
+
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    try {
+                        const data = JSON.parse(e.target.result);
+                        if (data.notes && Array.isArray(data.notes)) {
+                            if (confirm(`Import ${data.notes.length} notes? This will add to your existing notes.`)) {
+                                this.notes = [...this.notes, ...data.notes];
+                                this.saveNotes();
+                                this.renderNotes();
+                                alert(`Successfully imported ${data.notes.length} notes!`);
+                            }
+                        } else {
+                            alert('Invalid file format!');
+                        }
+                    } catch (error) {
+                        alert('Error reading file!');
+                    }
+                };
+                reader.readAsText(file);
+                
+                // Reset file input
+                event.target.value = '';
+            }
+
+            toggleSort() {
+                const sortBtn = document.getElementById('sortBtn');
+                const sortIcon = document.getElementById('sortIcon');
+                const sortLabel = document.getElementById('sortLabel');
+                const currentIndex = this.sortOptions.findIndex(opt => opt.value === this.sortOrder);
+                const newIndex = (currentIndex + 1) % this.sortOptions.length;
+                this.sortOrder = this.sortOptions[newIndex].value;
+                this.renderNotes();
+
+                // Animate icon and label
+                sortIcon.textContent = this.sortOptions[newIndex].icon;
+                sortLabel.textContent = this.sortOptions[newIndex].label;
+                sortLabel.style.display = 'inline';
+
+                // Hide label after 1.2s
+                setTimeout(() => {
+                    sortLabel.style.display = 'none';
+                    sortIcon.textContent = '📊';
+                }, 1200);
+            }
+
+
+            clearChat() {
+                if (confirm('Clear all chat messages? This will not affect your saved notes.')) {
+                    const chatMessages = document.getElementById('chatMessages');
+                    chatMessages.innerHTML = `
+                        <div class="message bot">
+                            <div class="message-content">
+                                👋 Chat cleared! How can I help you today?
+                            </div>
+                        </div>
+                    `;
+                    this.chatHistory = [];
+                }
+            }
+
+            updateUI() {
+                this.updateConnectionStatus(this.isConnected);
+            }
+            handleTool(toolName, args) {
+                switch (toolName) {
+                    case 'save_note':
+                    // args: { title, content }
+                    this.saveNote({
+                        title: args.title,
+                        content: args.content,
+                        timestamp: new Date().toISOString(),
+                        type: 'manual'
+                    });
+                    this.addMessage('bot', `🔧 Note saved: "${args.title}"`);
+                    break;
+
+                    case 'delete_note':
+                    // args: { title }  → delete by matching title/content substring
+                    const topic = args.title.toLowerCase();
+                    const idx = this.notes.findIndex(n =>
+                        n.title.toLowerCase().includes(topic) ||
+                        n.content.toLowerCase().includes(topic)
+                    );
+                    if (idx !== -1) {
+                        this.deleteNote(idx);
+                        this.addMessage('bot', `🔧 Note deleted about "${args.title}"`);
+                    } else {
+                        this.addMessage('bot', `🔧 No note found about "${args.title}".`);
+                    }
+                    break;
+
+                    case 'clear_notes':
+                    this.clearAllNotes();
+                    this.addMessage('bot', '🔧 Cleared all notes');
+                    break;
+
+                    case 'clear_chat':
+                    this.clearChat();
+                    // (clearChat already posts its own "Chat cleared" bot message)
+                    break;
+
+                    case 'export_notes':
+                    this.exportNotes();
+                    // exportNotes triggers the JSON-download
+                    break;
+
+                    default:
+                    console.warn(`Unknown tool: ${toolName}`, args);
+                }
+                }
+
+        }
+
+        // Initialize the app
+        const app = new NoteTakingApp();
+    </script>
+</body>
+</html>
