@@ -60,7 +60,7 @@ tools = [
 
 @app.route("/chat", methods=["POST"])
 def chat():
-    # pull in the last N messages (including your system prompt)
+    # pull in the last N messages (including system prompt)
     user_messages = request.json["messages"]
 
     # load your key and init client
@@ -71,7 +71,7 @@ def chat():
     response = client.chat.completions.create(
         model="gpt-4.1-mini",
         messages=user_messages,
-        functions=tools,          # ← your flattened list
+        functions=tools,          
         function_call="auto",
         temperature=0.7,
         max_tokens=1000
@@ -90,6 +90,7 @@ def chat():
     # otherwise just return the assistant’s text
     return jsonify({ "message": message.content })
 
+# functions after that are just in case 
 @app.route("/notes", methods=["GET"])
 def get_notes():
     """Get all notes"""
